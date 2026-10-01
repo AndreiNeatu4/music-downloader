@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Per-user installer: everything lands under %LocalAppData%\Programs, so Windows
+  never shows a UAC prompt. The app files themselves are harvested from the
+  PyInstaller onedir build by heat.exe into AppFiles.wxs.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Music Downloader"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="Music Downloader"
+           UpgradeCode="3C15C088-7759-4D61-AB3E-D92F706B38BF">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             Description="Music Downloader - YouTube and Spotify"
+             Comments="Downloads music from YouTube and Spotify" />
+
+    <!-- ALLUSERS=2 together with MSIINSTALLPERUSER=1 is the per-user install
+         mode: no elevation, and the entry in Apps and features belongs to this
+         user instead of the machine. -->
+    <Property Id="ALLUSERS" Value="2" />
+    <Property Id="MSIINSTALLPERUSER" Value="1" />
+
+    <!-- AllowSameVersionUpgrades keeps a reinstall of the same version from
+         landing as a second entry in Apps and features. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of Music Downloader is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.exe" />
+    <Property Id="ARPNOREPAIR" Value="1" Secure="yes" />
+    <Icon Id="AppIcon.exe" SourceFile="$(var.IconFile)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsFolder" Name="Programs">
+          <Directory Id="INSTALLFOLDER" Name="Music Downloader" />
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <!-- Per-user shortcuts need an HKCU key as their KeyPath. -->
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="6DD413D9-80FC-450E-B656-23613E839ACA">
+        <Shortcut Id="StartMenuApp"
+                  Name="Music Downloader"
+                  Description="Download music from YouTube and Spotify"
+                  Target="[INSTALLFOLDER]MusicDownloader.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\MusicDownloader"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="D30077F4-7E4B-46E8-9724-C8C4A00815E1">
+        <Shortcut Id="DesktopApp"
+                  Name="Music Downloader"
+                  Description="Download music from YouTube and Spotify"
+                  Target="[INSTALLFOLDER]MusicDownloader.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\MusicDownloader"
+                       Name="DesktopShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Music Downloader" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <!-- Offer to launch when the installer finishes. The target is set at run
+         time, once INSTALLFOLDER has an actual value. -->
+    <SetProperty Id="WixShellExecTarget"
+                 Value="[INSTALLFOLDER]MusicDownloader.exe"
+                 After="CostFinalize"
+                 Sequence="ui" />
+    <CustomAction Id="LaunchApp"
+                  BinaryKey="WixCA"
+                  DllEntry="WixShellExec"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <UI>
+      <UIRef Id="WixUI_Minimal" />
+      <Publish Dialog="ExitDialog"
+               Control="Finish"
+               Event="DoAction"
+               Value="LaunchApp">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Music Downloader" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseFile)" />
+  </Product>
+</Wix>
